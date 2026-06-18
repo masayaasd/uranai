@@ -30,7 +30,7 @@
       name: "白龍タイプ",
       theme: "生活を守る金運タイプ",
       title: "白龍守護型",
-      image: "assets/type-white.png",
+      image: "/assets/type-white.png",
       essence: "あなたは、毎日の暮らしを丁寧に守りながら、お金の流れを安定させたい気持ちが強い方です。",
       concern: "支払い、老後資金、急な出費など、現実的な不安を一人で抱え込みやすい傾向があります。",
       point: "金運が乱れやすいのは、財布・通帳・請求書などを目にした時に心が重くなる瞬間です。",
@@ -42,7 +42,7 @@
       name: "緑龍タイプ",
       theme: "家族を守る金運タイプ",
       title: "緑龍守護型",
-      image: "assets/type-green.png",
+      image: "/assets/type-green.png",
       essence: "あなたは、自分のことよりも家族や大切な人を優先しながら、暮らしの土台を支えてきた方です。",
       concern: "子供、親、家計、住まいのことを考えすぎて、自分の安心が後回しになりやすいかもしれません。",
       point: "金運が乱れやすいのは、家族のために我慢を重ねて、必要な相談を先延ばしにする時です。",
@@ -54,7 +54,7 @@
       name: "月龍タイプ",
       theme: "癒しと受け取りの金運タイプ",
       title: "月龍安定型",
-      image: "assets/type-moon.png",
+      image: "/assets/type-moon.png",
       essence: "あなたは、目に見えない安心や優しい言葉を大切にしながら、自分の心を整えて進む方です。",
       concern: "夜の不安、孤独感、誰にもわかってもらえない感覚が、お金の不安と重なりやすい傾向があります。",
       point: "金運が乱れやすいのは、不安を抱えたまま眠りにつき、翌朝まで心を休ませられない時です。",
@@ -66,7 +66,7 @@
       name: "金龍タイプ",
       theme: "人生転機の金運タイプ",
       title: "金龍転機型",
-      image: "assets/type-gold.png",
+      image: "/assets/type-gold.png",
       essence: "あなたは、今の流れを変えたい気持ちを内側に持ち、具体的な一歩を求めている方です。",
       concern: "変わりたいのに何から始めればよいかわからず、答えを探して立ち止まりやすい時期かもしれません。",
       point: "金運が乱れやすいのは、焦りから情報を集めすぎて、自分に合う行動を選べなくなる時です。",
@@ -184,6 +184,7 @@
   window.addEventListener("hashchange", handleHash);
   handleHash();
   startAuraCanvas();
+  continueLineHarnessStart();
 
   function q(id, text, axis) {
     return { id, text, axis };
@@ -199,6 +200,21 @@
     if (route === "home" || route === "admin") {
       resetFlow();
     }
+    render();
+  }
+
+  function continueLineHarnessStart() {
+    const params = new URLSearchParams(location.search);
+    if (params.get("resume") !== "start" || !getLineContext().userId) {
+      return;
+    }
+
+    params.delete("resume");
+    const cleanUrl = new URL(location.href);
+    cleanUrl.search = params.toString();
+    history.replaceState(null, "", `${cleanUrl.pathname}${cleanUrl.search}${cleanUrl.hash}`);
+
+    state.step = "consent";
     render();
   }
 
@@ -865,6 +881,7 @@
     url.hash = "";
     if (!url.searchParams.get("utm_source")) url.searchParams.set("utm_source", "line");
     if (!url.searchParams.get("entry")) url.searchParams.set("entry", "rich_menu");
+    url.searchParams.set("resume", "start");
     return url.toString();
   }
 

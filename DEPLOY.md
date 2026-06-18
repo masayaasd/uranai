@@ -62,6 +62,18 @@ https://liff.line.me/2010382261-EjL1dqOH?liffId=2010382261-EjL1dqOH&ref=ryujin_d
 https://liff.line.me/2010382261-EjL1dqOH?liffId=2010382261-EjL1dqOH&ref=ryujin_diagnosis&redirect=https%3A%2F%2Furanai-5ua.pages.dev%2Ft%2F%3Futm_source%3Dline%26entry%3Dbroadcast
 ```
 
+## LINEの外部サイト警告について
+
+LハーネスのLIFFエンドポイントから `uranai-5ua.pages.dev` へ移動する構成では、LINEアプリが「外部サイトに移動したため...」という警告を表示する場合があります。
+
+この警告を避けるには、LINE Developers Console のLIFF設定で、LIFFの Endpoint URL を診断ページ側のURLに変更してください。
+
+```text
+Endpoint URL: https://uranai-5ua.pages.dev/
+```
+
+この設定変更はLハーネス管理画面ではなく、LINE Developers Console側で行います。
+
 ## 公開後の確認
 
 1. 公開URLをスマホで開いてトップページが表示されるか確認します。
