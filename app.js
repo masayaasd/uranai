@@ -15,7 +15,9 @@
 
   let lineHarnessInitPromise = null;
   let lineHarnessIdentityPromise = null;
+  let cachedLineHarnessIdentity = null;
   let sessionLineUserId = "";
+  const enteredFromLiff = new URLSearchParams(location.search).has("liff.state");
 
   const AXES = {
     money: { label: "金運不安度", type: "white" },
@@ -181,6 +183,7 @@
 
   document.addEventListener("click", handleClick);
   window.addEventListener("hashchange", handleHash);
+  primeLineHarnessIdentityFromLiff();
   restoreLiffStateFromUrl();
   captureLineHarnessIdentityFromUrl();
   handleHash();
@@ -231,12 +234,7 @@
       return;
     }
 
-    sessionLineUserId = userId;
-    try {
-      sessionStorage.setItem(CONFIG.lineHarness.sessionKey, userId);
-    } catch {
-      // sessionStorage may be unavailable in restricted in-app browsers.
-    }
+    storeLineUserId(userId);
 
     const cleanUrl = new URL(location.href);
     CONFIG.lineHarness.userIdParams.forEach(name => cleanUrl.searchParams.delete(name));
@@ -742,12 +740,15 @@
       }
       if (index >= lines.length) {
         clearInterval(timer);
-        state.result = buildResult();
-        saveRecord(state.result);
-        sendLineHarnessTags(state.result, "diagnosis_completed");
+        const completedResult = buildResult();
+        state.result = completedResult;
+        saveRecord(completedResult);
         state.step = "result";
         setRouteHash("result");
         render();
+        window.setTimeout(() => {
+          sendLineHarnessTags(completedResult, "diagnosis_completed");
+        }, 0);
       }
     }, 950);
   }
@@ -967,6 +968,18 @@
     return sessionLineUserId;
   }
 
+  function storeLineUserId(userId) {
+    const normalized = normalizeLineUserId(userId);
+    if (!normalized) return;
+
+    sessionLineUserId = normalized;
+    try {
+      sessionStorage.setItem(CONFIG.lineHarness.sessionKey, normalized);
+    } catch {
+      // sessionStorage may be unavailable in restricted in-app browsers.
+    }
+  }
+
   function normalizeLineUserId(value) {
     const id = typeof value === "string" ? value.trim() : "";
     return /^U[a-fA-F0-9]{32}$/.test(id) ? id : "";
@@ -990,6 +1003,47 @@
       lineHarnessInitPromise = window.liff.init({ liffId: CONFIG.lineHarness.liffId });
     }
     return lineHarnessInitPromise;
+  }
+
+  function primeLineHarnessIdentityFromLiff() {
+    if (!enteredFromLiff || !CONFIG.lineHarness.enabled || !CONFIG.lineHarness.liffId || !window.liff) {
+      return;
+    }
+    if (lineHarnessIdentityPromise) {
+      return;
+    }
+
+    lineHarnessIdentityPromise = readLineHarnessIdentityFromLiff()
+      .then((identity) => {
+        cachedLineHarnessIdentity = identity;
+        if (identity.lineUserId) {
+          storeLineUserId(identity.lineUserId);
+        }
+        return identity;
+      })
+      .catch((error) => {
+        cachedLineHarnessIdentity = {
+          idToken: "",
+          lineUserId: getLineContext().userId,
+          error: error.message || "liff_identity_failed"
+        };
+        return cachedLineHarnessIdentity;
+      });
+  }
+
+  async function readLineHarnessIdentityFromLiff() {
+    const lineContext = getLineContext();
+    await initLineHarnessLiff();
+    if (!window.liff.isLoggedIn()) {
+      return { idToken: "", lineUserId: lineContext.userId, error: "liff_not_logged_in" };
+    }
+    const profile = await window.liff.getProfile();
+    const lineUserId = normalizeLineUserId(profile.userId) || lineContext.userId;
+    return {
+      idToken: window.liff.getIDToken() || "",
+      lineUserId,
+      error: ""
+    };
   }
 
   async function sendLineHarnessTags(result, eventName) {
@@ -1056,22 +1110,11 @@
     if (lineContext.userId) {
       return { idToken: "", lineUserId: lineContext.userId, error: "" };
     }
-    if (!window.liff) {
-      return { idToken: "", lineUserId: lineContext.userId, error: "liff_sdk_not_loaded" };
+    if (cachedLineHarnessIdentity) {
+      return cachedLineHarnessIdentity;
     }
     if (!lineHarnessIdentityPromise) {
-      lineHarnessIdentityPromise = (async () => {
-        await initLineHarnessLiff();
-        if (!window.liff.isLoggedIn()) {
-          return { idToken: "", lineUserId: lineContext.userId, error: "liff_not_logged_in" };
-        }
-        const profile = await window.liff.getProfile();
-        return {
-          idToken: window.liff.getIDToken() || "",
-          lineUserId: profile.userId || lineContext.userId,
-          error: ""
-        };
-      })();
+      return { idToken: "", lineUserId: "", error: "line_identity_not_ready" };
     }
     return lineHarnessIdentityPromise;
   }
