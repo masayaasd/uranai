@@ -20,6 +20,7 @@
   let lineHarnessInitPromise = null;
   let lineHarnessIdentityPromise = null;
   let sessionLineUserId = "";
+  let restoredStartFromLiffState = false;
 
   const AXES = {
     money: { label: "金運不安度", type: "white" },
@@ -185,30 +186,49 @@
 
   document.addEventListener("click", handleClick);
   window.addEventListener("hashchange", handleHash);
-  const restoresAfterLiffInit = primeLineHarnessLiffFromState();
-  if (!restoresAfterLiffInit) {
-    restoreLiffStateFromUrl();
-  }
-  captureLineHarnessIdentityFromUrl();
-  handleHash();
-  startAuraCanvas();
-  continueLineHarnessStart();
+  bootstrap();
 
   function q(id, text, axis) {
     return { id, text, axis };
   }
 
-  function primeLineHarnessLiffFromState() {
-    const params = new URLSearchParams(location.search);
-    if (!params.has("liff.state") || !CONFIG.lineHarness.enabled || !CONFIG.lineHarness.liffId || !window.liff) {
-      return false;
+  async function bootstrap() {
+    if (shouldPrimeLineHarnessLiff()) {
+      renderBootLoading();
+      await settleLineHarnessLiffInit();
     }
-    initLineHarnessLiff()
-      .catch(() => {
-        lineHarnessInitPromise = null;
-      })
-      .finally(restoreLiffStateFromUrl);
-    return true;
+    restoreLiffStateFromUrl();
+    captureLineHarnessIdentityFromUrl();
+    handleHash();
+    startAuraCanvas();
+    continueLineHarnessStart();
+  }
+
+  function shouldPrimeLineHarnessLiff() {
+    const params = new URLSearchParams(location.search);
+    return params.has("liff.state") && CONFIG.lineHarness.enabled && CONFIG.lineHarness.liffId && window.liff;
+  }
+
+  async function settleLineHarnessLiffInit() {
+    try {
+      await Promise.race([
+        initLineHarnessLiff(),
+        new Promise(resolve => window.setTimeout(resolve, 2500))
+      ]);
+    } catch {
+      lineHarnessInitPromise = null;
+    }
+  }
+
+  function renderBootLoading() {
+    app.innerHTML = `
+      <section class="screen">
+        <div class="panel">
+          <span class="eyebrow">診断ページを準備中</span>
+          <h2>LINE連携を確認しています</h2>
+        </div>
+      </section>
+    `;
   }
 
   function handleHash() {
@@ -231,7 +251,7 @@
     }
 
     removeResumeParam();
-    if (!consumePendingLineHarnessStart()) {
+    if (!consumePendingLineHarnessStart() && !restoredStartFromLiffState) {
       return;
     }
 
@@ -281,6 +301,7 @@
       return;
     }
 
+    restoredStartFromLiffState = redirectUrl.searchParams.get("resume") === "start";
     history.replaceState(null, "", `${redirectUrl.pathname}${redirectUrl.search}${redirectUrl.hash}`);
   }
 
