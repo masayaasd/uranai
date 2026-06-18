@@ -193,17 +193,12 @@
 
   function handleHash() {
     const route = location.hash.replace("#", "") || "home";
-    if (route === "admin") {
-      state.step = "admin";
-      render();
-      return;
-    }
     if (route === "result" && state.result) {
       state.step = "result";
       render();
       return;
     }
-    if (route === "home") {
+    if (route === "home" || route === "admin") {
       resetFlow();
     }
     render();
@@ -350,10 +345,9 @@
       quiz: renderQuiz,
       freeNote: renderFreeNote,
       loading: renderLoading,
-      result: renderResult,
-      admin: renderAdmin
+      result: renderResult
     };
-    app.innerHTML = screens[state.step]();
+    app.innerHTML = (screens[state.step] || renderHome)();
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -499,7 +493,7 @@
         <div class="panel">
           <span class="eyebrow">任意入力</span>
           <h2>最後に、今の悩みや聞いてほしいことがあれば書いてください</h2>
-          <p class="lead">書かなくても診断できます。入力した内容は、管理画面・CSV・今後の個別鑑定導線で確認できるように保存します。</p>
+          <p class="lead">書かなくても診断できます。入力した内容は、今後の個別鑑定導線で確認できるように保存します。</p>
           <div class="form-grid">
             <div class="field">
               <label for="freeNote">自由記入欄</label>
@@ -593,75 +587,7 @@
           </ul>
           <div class="cta-row">
             <button class="line-button" type="button" data-action="line">LINEで無料鑑定書を受け取る</button>
-            <button class="secondary-button" type="button" data-route="admin">管理画面で保存データを見る</button>
           </div>
-        </div>
-      </section>
-    `;
-  }
-
-  function renderAdmin() {
-    const records = getRecords();
-    const lineCount = records.filter(item => item.lineClickedAt).length;
-    const lineHarnessSent = records.filter(item => item.lineHarnessStatus === "sent").length;
-    const byType = countBy(records, "mainTypeName");
-    return `
-      <section class="screen">
-        <div class="panel">
-          <span class="eyebrow">管理画面 MVP</span>
-          <h2>診断データ</h2>
-          <p class="lead">この初期版ではブラウザのlocalStorageに保存しています。本番ではAPIとDBへ接続してください。</p>
-          <div class="admin-stat-grid">
-            <div class="admin-stat"><span>総診断数</span><strong>${records.length}</strong></div>
-            <div class="admin-stat"><span>LINE登録クリック</span><strong>${lineCount}</strong></div>
-            <div class="admin-stat"><span>登録率</span><strong>${records.length ? Math.round((lineCount / records.length) * 100) : 0}%</strong></div>
-            <div class="admin-stat"><span>タグ送信</span><strong>${lineHarnessSent}</strong></div>
-            <div class="admin-stat"><span>最多タイプ</span><strong>${topLabel(byType)}</strong></div>
-          </div>
-          <div class="action-row">
-            <button class="primary-button" type="button" data-action="downloadCsv">CSVエクスポート</button>
-            <button class="secondary-button" type="button" data-route="home">診断ページへ戻る</button>
-            <button class="ghost-button" type="button" data-action="clearAdmin">保存データを削除</button>
-          </div>
-        </div>
-
-        <div class="admin-table-wrap">
-          ${records.length ? `
-            <table class="admin-table">
-              <thead>
-                <tr>
-                  <th>診断日時</th>
-                  <th>ニックネーム</th>
-                  <th>年代</th>
-                  <th>都道府県</th>
-                  <th>診断タイプ</th>
-                  <th>悩み</th>
-                  <th>購買温度</th>
-                  <th>自由記入</th>
-                  <th>LINE</th>
-                  <th>Lハーネス</th>
-                  <th>タグ</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${records.map(record => `
-                  <tr>
-                    <td>${formatDate(record.createdAt)}</td>
-                    <td>${escapeHtml(record.nickname)}</td>
-                    <td>${escapeHtml(record.ageRange)}</td>
-                    <td>${escapeHtml(record.prefecture)}</td>
-                    <td>${escapeHtml(record.mainTypeName)}<br>${escapeHtml(record.subLabel)}</td>
-                    <td>${escapeHtml(record.mainConcern)}</td>
-                    <td>${escapeHtml(record.buyingIntent)}</td>
-                    <td>${escapeHtml(record.freeNote)}</td>
-                    <td>${record.lineClickedAt ? "クリック済み" : "未登録"}</td>
-                    <td>${lineHarnessStatusHtml(record)}</td>
-                    <td>${record.tags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join(" ")}</td>
-                  </tr>
-                `).join("")}
-              </tbody>
-            </table>
-          ` : `<div class="empty-state">まだ診断データがありません。</div>`}
         </div>
       </section>
     `;
