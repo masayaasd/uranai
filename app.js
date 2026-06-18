@@ -8,8 +8,9 @@
       endpoint: "/api/diagnosis-tags",
       liffId: "2010382261-EjL1dqOH",
       sessionKey: "ryujin_line_user_id",
+      startRedirectKey: "ryujin_liff_start_redirected",
       userIdParams: ["line_user_id", "lh_uid", "lhUserId", "uid", "userId", "lu"],
-      entryParams: ["entry", "lh_entry", "route", "utm_content"]
+      entryParams: ["entry", "ref", "lh_entry", "route", "utm_content"]
     }
   };
 
@@ -17,7 +18,8 @@
   let lineHarnessIdentityPromise = null;
   let cachedLineHarnessIdentity = null;
   let sessionLineUserId = "";
-  const enteredFromLiff = new URLSearchParams(location.search).has("liff.state");
+  const initialSearchParams = new URLSearchParams(location.search);
+  const enteredFromLiff = initialSearchParams.has("liff.state");
 
   const AXES = {
     money: { label: "金運不安度", type: "white" },
@@ -186,6 +188,7 @@
   primeLineHarnessIdentityFromLiff();
   restoreLiffStateFromUrl();
   captureLineHarnessIdentityFromUrl();
+  primeLineHarnessIdentityFromLiff();
   handleHash();
   startAuraCanvas();
 
@@ -269,13 +272,7 @@
   function runAction(action, element) {
     state.error = "";
     if (action === "start") {
-      const shell = document.querySelector(".app-shell");
-      shell?.classList.add("is-awakening");
-      window.setTimeout(() => {
-        shell?.classList.remove("is-awakening");
-        state.step = "consent";
-        render();
-      }, 760);
+      beginDiagnosisFlow();
       return;
     }
     if (action === "consent") {
@@ -364,6 +361,22 @@
     state.answers = {};
     state.result = null;
     state.error = "";
+  }
+
+  async function beginDiagnosisFlow() {
+    const shell = document.querySelector(".app-shell");
+    shell?.classList.add("is-awakening");
+
+    const identityStatus = await ensureLineHarnessIdentityForStart();
+    if (identityStatus.redirected) {
+      return;
+    }
+
+    window.setTimeout(() => {
+      shell?.classList.remove("is-awakening");
+      state.step = "consent";
+      render();
+    }, 520);
   }
 
   function render() {
@@ -998,6 +1011,92 @@
     return "";
   }
 
+  async function ensureLineHarnessIdentityForStart() {
+    if (!CONFIG.lineHarness.enabled || !CONFIG.lineHarness.liffId) {
+      return { ready: false, redirected: false };
+    }
+
+    const lineContext = getLineContext();
+    if (lineContext.userId || cachedLineHarnessIdentity?.idToken || cachedLineHarnessIdentity?.lineUserId) {
+      clearLineHarnessStartRedirectFlag();
+      return { ready: true, redirected: false };
+    }
+
+    const started = primeLineHarnessIdentityFromLiff({ force: true });
+    if (started) {
+      const identity = await withTimeout(started, 1600);
+      if (identity?.idToken || identity?.lineUserId) {
+        clearLineHarnessStartRedirectFlag();
+        return { ready: true, redirected: false };
+      }
+    }
+
+    if (shouldRedirectToLineHarnessLiff()) {
+      markLineHarnessStartRedirected();
+      location.href = buildLineHarnessAppUrl();
+      return { ready: false, redirected: true };
+    }
+
+    return { ready: false, redirected: false };
+  }
+
+  function shouldRedirectToLineHarnessLiff() {
+    if (!isLineInAppBrowser()) {
+      return false;
+    }
+    if (enteredFromLiff || hasLineHarnessStartRedirected()) {
+      return false;
+    }
+    return !getLineContext().userId;
+  }
+
+  function buildLineHarnessAppUrl() {
+    const entry = getLineContext().entry || initialSearchParams.get("ref") || "line";
+    const params = new URLSearchParams({
+      liffId: CONFIG.lineHarness.liffId,
+      ref: entry,
+      redirect: buildLineHarnessRedirectUrl(entry)
+    });
+    return `https://line.me/R/app/${CONFIG.lineHarness.liffId}?${params.toString()}`;
+  }
+
+  function buildLineHarnessRedirectUrl(entry) {
+    const url = new URL(location.href);
+    url.searchParams.delete("liff.state");
+    if (!url.searchParams.get("utm_source")) {
+      url.searchParams.set("utm_source", "line");
+    }
+    if (entry && !url.searchParams.get("entry")) {
+      url.searchParams.set("entry", entry);
+    }
+    url.hash = "";
+    return url.toString();
+  }
+
+  function hasLineHarnessStartRedirected() {
+    try {
+      return sessionStorage.getItem(CONFIG.lineHarness.startRedirectKey) === "1";
+    } catch {
+      return false;
+    }
+  }
+
+  function markLineHarnessStartRedirected() {
+    try {
+      sessionStorage.setItem(CONFIG.lineHarness.startRedirectKey, "1");
+    } catch {
+      // sessionStorage may be unavailable in restricted in-app browsers.
+    }
+  }
+
+  function clearLineHarnessStartRedirectFlag() {
+    try {
+      sessionStorage.removeItem(CONFIG.lineHarness.startRedirectKey);
+    } catch {
+      // sessionStorage may be unavailable in restricted in-app browsers.
+    }
+  }
+
   function initLineHarnessLiff() {
     if (!lineHarnessInitPromise) {
       lineHarnessInitPromise = window.liff.init({ liffId: CONFIG.lineHarness.liffId });
@@ -1005,12 +1104,12 @@
     return lineHarnessInitPromise;
   }
 
-  function primeLineHarnessIdentityFromLiff() {
-    if (!enteredFromLiff || !CONFIG.lineHarness.enabled || !CONFIG.lineHarness.liffId || !window.liff) {
-      return;
+  function primeLineHarnessIdentityFromLiff(options = {}) {
+    if (!shouldReadLineHarnessLiff(options.force)) {
+      return null;
     }
     if (lineHarnessIdentityPromise) {
-      return;
+      return lineHarnessIdentityPromise;
     }
 
     lineHarnessIdentityPromise = readLineHarnessIdentityFromLiff()
@@ -1029,21 +1128,61 @@
         };
         return cachedLineHarnessIdentity;
       });
+    return lineHarnessIdentityPromise;
+  }
+
+  function shouldReadLineHarnessLiff(force = false) {
+    if (!CONFIG.lineHarness.enabled || !CONFIG.lineHarness.liffId || !window.liff) {
+      return false;
+    }
+    if (enteredFromLiff || isLineInAppBrowser()) {
+      return true;
+    }
+    return Boolean(force && isLineInAppBrowser());
+  }
+
+  function isLineInAppBrowser() {
+    return /Line\//i.test(navigator.userAgent || "");
   }
 
   async function readLineHarnessIdentityFromLiff() {
     const lineContext = getLineContext();
     await initLineHarnessLiff();
+    const contextUserId = getLineHarnessLiffContextUserId();
+    const contextIdToken = getLineHarnessIdToken();
+    if (contextUserId) {
+      return {
+        idToken: contextIdToken,
+        lineUserId: contextUserId,
+        error: ""
+      };
+    }
     if (!window.liff.isLoggedIn()) {
       return { idToken: "", lineUserId: lineContext.userId, error: "liff_not_logged_in" };
     }
     const profile = await window.liff.getProfile();
     const lineUserId = normalizeLineUserId(profile.userId) || lineContext.userId;
     return {
-      idToken: window.liff.getIDToken() || "",
+      idToken: getLineHarnessIdToken(),
       lineUserId,
       error: ""
     };
+  }
+
+  function getLineHarnessLiffContextUserId() {
+    try {
+      return normalizeLineUserId(window.liff.getContext?.()?.userId || "");
+    } catch {
+      return "";
+    }
+  }
+
+  function getLineHarnessIdToken() {
+    try {
+      return window.liff.getIDToken?.() || "";
+    } catch {
+      return "";
+    }
   }
 
   async function sendLineHarnessTags(result, eventName) {
@@ -1114,9 +1253,23 @@
       return cachedLineHarnessIdentity;
     }
     if (!lineHarnessIdentityPromise) {
+      const started = primeLineHarnessIdentityFromLiff({ force: true });
+      if (started) {
+        const identity = await withTimeout(started, 3500);
+        if (identity?.idToken || identity?.lineUserId) {
+          return identity;
+        }
+      }
       return { idToken: "", lineUserId: "", error: "line_identity_not_ready" };
     }
-    return lineHarnessIdentityPromise;
+    return withTimeout(lineHarnessIdentityPromise, 3500);
+  }
+
+  function withTimeout(promise, timeoutMs) {
+    return Promise.race([
+      promise,
+      new Promise(resolve => window.setTimeout(() => resolve({ idToken: "", lineUserId: "", error: "line_identity_timeout" }), timeoutMs))
+    ]);
   }
 
   function lineHarnessHeaders() {
