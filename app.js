@@ -12,6 +12,7 @@
     }
   };
 
+  let lineHarnessInitPromise = null;
   let lineHarnessIdentityPromise = null;
 
   const AXES = {
@@ -226,13 +227,21 @@
   function runAction(action, element) {
     state.error = "";
     if (action === "start") {
-      const shell = document.querySelector(".app-shell");
-      shell?.classList.add("is-awakening");
-      window.setTimeout(() => {
-        shell?.classList.remove("is-awakening");
-        state.step = "consent";
-        render();
-      }, 760);
+      prepareLineHarnessSession()
+        .then((redirecting) => {
+          if (redirecting) return;
+          const shell = document.querySelector(".app-shell");
+          shell?.classList.add("is-awakening");
+          window.setTimeout(() => {
+            shell?.classList.remove("is-awakening");
+            state.step = "consent";
+            render();
+          }, 760);
+        })
+        .catch(() => {
+          state.step = "consent";
+          render();
+        });
       return;
     }
     if (action === "consent") {
@@ -805,6 +814,31 @@
     return "";
   }
 
+  async function prepareLineHarnessSession() {
+    if (!CONFIG.lineHarness.enabled || !CONFIG.lineHarness.liffId || !window.liff) {
+      return false;
+    }
+    await initLineHarnessLiff();
+    if (!window.liff.isLoggedIn()) {
+      window.liff.login({ redirectUri: currentPageUrl() });
+      return true;
+    }
+    return false;
+  }
+
+  function initLineHarnessLiff() {
+    if (!lineHarnessInitPromise) {
+      lineHarnessInitPromise = window.liff.init({ liffId: CONFIG.lineHarness.liffId });
+    }
+    return lineHarnessInitPromise;
+  }
+
+  function currentPageUrl() {
+    const url = new URL(location.href);
+    url.hash = "";
+    return url.toString();
+  }
+
   async function sendLineHarnessTags(result, eventName) {
     const statusBase = { eventName, occurredAt: new Date().toISOString() };
     if (!CONFIG.lineHarness.enabled || !CONFIG.lineHarness.endpoint) {
@@ -871,7 +905,7 @@
     }
     if (!lineHarnessIdentityPromise) {
       lineHarnessIdentityPromise = (async () => {
-        await window.liff.init({ liffId: CONFIG.lineHarness.liffId });
+        await initLineHarnessLiff();
         if (!window.liff.isLoggedIn()) {
           return { idToken: "", lineUserId: lineContext.userId, error: "liff_not_logged_in" };
         }

@@ -66,8 +66,9 @@ https://uranai-5ua.pages.dev/?utm_source=line&entry=broadcast
 
 1. 公開URLをスマホで開いてトップページが表示されるか確認します。
 2. LINE配信用URLから診断ページを開きます。
-3. 診断を最後まで回答します。
-4. Lハーネス管理画面で該当ユーザーにタグが付いているか確認します。
+3. 診断開始時にLINEログイン確認が出た場合は許可して、診断ページへ戻ります。
+4. 診断を最後まで回答します。
+5. Lハーネス管理画面で該当ユーザーにタグが付いているか確認します。
 
 付く想定のタグ例:
 
@@ -86,4 +87,5 @@ https://uranai-5ua.pages.dev/?utm_source=line&entry=broadcast
 - 診断ページURLが `https://uranai-5ua.pages.dev/` になっているか確認します。
 - `LINE_HARNESS_API_KEY` がCloudflare Pagesに登録されているか確認します。
 - `ALLOWED_ORIGINS` が実際の公開URLと一致しているか確認します。
+- 診断開始時にLINEログインを許可しているか確認します。
 - Lハーネス側に友だち登録済みのユーザーでテストしているか確認します。
