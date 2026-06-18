@@ -46,8 +46,9 @@ const CONFIG = {
     endpoint: "/api/diagnosis-tags",
     liffId: "2010382261-EjL1dqOH",
     liffUrl: "https://liff.line.me/2010382261-EjL1dqOH",
-    refCode: "ryujin_diagnosis",
+    refCode: "yt_line",
     redirectPath: "/t/",
+    sessionKey: "ryujin_line_user_id",
     userIdParams: ["line_user_id", "lh_uid", "lhUserId", "uid", "userId", "lu"],
     entryParams: ["entry", "lh_entry", "route", "utm_content"]
   }
@@ -85,7 +86,7 @@ ALLOWED_ORIGINS=https://your-diagnosis-domain.example
 形式:
 
 ```text
-https://liff.line.me/2010382261-EjL1dqOH?liffId=2010382261-EjL1dqOH&ref=ryujin_diagnosis&redirect=https%3A%2F%2Furanai-5ua.pages.dev%2Ft%2F%3Futm_source%3Dline%26entry%3Drich_menu
+https://liff.line.me/2010382261-EjL1dqOH?liffId=2010382261-EjL1dqOH&ref=yt_line&redirect=https%3A%2F%2Furanai-5ua.pages.dev%2Ft%2F%3Futm_source%3Dline%26entry%3Dyt_line
 ```
 
 このURLで開くと、Lハーネスで友だち情報をひも付けた後、診断ページへ戻ります。診断ページへ戻る際にLハーネスが `lu` を付けた場合、そのLINEユーザーIDを使ってタグ付けします。

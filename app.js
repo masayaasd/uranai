@@ -8,8 +8,9 @@
       endpoint: "/api/diagnosis-tags",
       liffId: "2010382261-EjL1dqOH",
       liffUrl: "https://liff.line.me/2010382261-EjL1dqOH",
-      refCode: "ryujin_diagnosis",
+      refCode: "yt_line",
       redirectPath: "/t/",
+      sessionKey: "ryujin_line_user_id",
       userIdParams: ["line_user_id", "lh_uid", "lhUserId", "uid", "userId", "lu"],
       entryParams: ["entry", "lh_entry", "route", "utm_content"]
     }
@@ -17,6 +18,7 @@
 
   let lineHarnessInitPromise = null;
   let lineHarnessIdentityPromise = null;
+  let sessionLineUserId = "";
 
   const AXES = {
     money: { label: "金運不安度", type: "white" },
@@ -182,6 +184,7 @@
 
   document.addEventListener("click", handleClick);
   window.addEventListener("hashchange", handleHash);
+  captureLineHarnessIdentityFromUrl();
   handleHash();
   startAuraCanvas();
   continueLineHarnessStart();
@@ -216,6 +219,25 @@
 
     state.step = "consent";
     render();
+  }
+
+  function captureLineHarnessIdentityFromUrl() {
+    const params = new URLSearchParams(location.search);
+    const userId = normalizeLineUserId(firstParam(params, CONFIG.lineHarness.userIdParams));
+    if (!userId) {
+      return;
+    }
+
+    sessionLineUserId = userId;
+    try {
+      sessionStorage.setItem(CONFIG.lineHarness.sessionKey, userId);
+    } catch {
+      // sessionStorage may be unavailable in restricted in-app browsers.
+    }
+
+    const cleanUrl = new URL(location.href);
+    CONFIG.lineHarness.userIdParams.forEach(name => cleanUrl.searchParams.delete(name));
+    history.replaceState(null, "", `${cleanUrl.pathname}${cleanUrl.search}${cleanUrl.hash}`);
   }
 
   function handleClick(event) {
@@ -810,7 +832,7 @@
 
   function getLineContext() {
     const params = new URLSearchParams(location.search);
-    const userId = firstParam(params, CONFIG.lineHarness.userIdParams);
+    const userId = normalizeLineUserId(firstParam(params, CONFIG.lineHarness.userIdParams)) || getStoredLineUserId();
     const entry = firstParam(params, CONFIG.lineHarness.entryParams) || inferLineEntry(params);
     return {
       userId,
@@ -818,6 +840,23 @@
       sourceUrl: location.href,
       deliveredBy: entry || ""
     };
+  }
+
+  function getStoredLineUserId() {
+    if (sessionLineUserId) {
+      return sessionLineUserId;
+    }
+    try {
+      sessionLineUserId = normalizeLineUserId(sessionStorage.getItem(CONFIG.lineHarness.sessionKey) || "");
+    } catch {
+      sessionLineUserId = "";
+    }
+    return sessionLineUserId;
+  }
+
+  function normalizeLineUserId(value) {
+    const id = typeof value === "string" ? value.trim() : "";
+    return /^U[a-fA-F0-9]{32}$/.test(id) ? id : "";
   }
 
   function firstParam(params, names) {
@@ -880,7 +919,7 @@
     url.pathname = CONFIG.lineHarness.redirectPath || "/";
     url.hash = "";
     if (!url.searchParams.get("utm_source")) url.searchParams.set("utm_source", "line");
-    if (!url.searchParams.get("entry")) url.searchParams.set("entry", "rich_menu");
+    if (!url.searchParams.get("entry")) url.searchParams.set("entry", CONFIG.lineHarness.refCode || "line_url");
     url.searchParams.set("resume", "start");
     return url.toString();
   }

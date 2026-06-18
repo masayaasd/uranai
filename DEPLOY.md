@@ -53,13 +53,13 @@ ALLOWED_ORIGINS=https://ryujin-diagnosis.pages.dev
 リッチメニューや配信メッセージには、LハーネスのLIFF URLに診断ページへの `redirect` を付けたURLを使います。
 
 ```text
-https://liff.line.me/2010382261-EjL1dqOH?liffId=2010382261-EjL1dqOH&ref=ryujin_diagnosis&redirect=https%3A%2F%2Furanai-5ua.pages.dev%2Ft%2F%3Futm_source%3Dline%26entry%3Drich_menu
+https://liff.line.me/2010382261-EjL1dqOH?liffId=2010382261-EjL1dqOH&ref=yt_line&redirect=https%3A%2F%2Furanai-5ua.pages.dev%2Ft%2F%3Futm_source%3Dline%26entry%3Dyt_line
 ```
 
 配信別に見分けたい場合は `entry` だけ変えてください。
 
 ```text
-https://liff.line.me/2010382261-EjL1dqOH?liffId=2010382261-EjL1dqOH&ref=ryujin_diagnosis&redirect=https%3A%2F%2Furanai-5ua.pages.dev%2Ft%2F%3Futm_source%3Dline%26entry%3Dbroadcast
+https://liff.line.me/2010382261-EjL1dqOH?liffId=2010382261-EjL1dqOH&ref=yt_line&redirect=https%3A%2F%2Furanai-5ua.pages.dev%2Ft%2F%3Futm_source%3Dline%26entry%3Dbroadcast
 ```
 
 ## LINEの外部サイト警告について
