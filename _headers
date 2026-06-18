@@ -1,0 +1,5 @@
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://static.line-scdn.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://profile.line-scdn.net https://sprofile.line-scdn.net; connect-src 'self' https://api.line.me https://liff.line.me https://access.line.me https://line.me https://line-harness.takumi-baseball04010.workers.dev; frame-ancestors 'none'; base-uri 'self'; form-action 'self'
