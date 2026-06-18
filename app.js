@@ -8,7 +8,6 @@
       endpoint: "/api/diagnosis-tags",
       liffId: "2010382261-EjL1dqOH",
       sessionKey: "ryujin_line_user_id",
-      startRedirectKey: "ryujin_liff_start_redirected",
       userIdParams: ["line_user_id", "lh_uid", "lhUserId", "uid", "userId", "lu"],
       entryParams: ["entry", "ref", "lh_entry", "route", "utm_content"]
     }
@@ -363,14 +362,10 @@
     state.error = "";
   }
 
-  async function beginDiagnosisFlow() {
+  function beginDiagnosisFlow() {
     const shell = document.querySelector(".app-shell");
     shell?.classList.add("is-awakening");
-
-    const identityStatus = await ensureLineHarnessIdentityForStart();
-    if (identityStatus.redirected) {
-      return;
-    }
+    primeLineHarnessIdentityFromLiff({ force: true });
 
     window.setTimeout(() => {
       shell?.classList.remove("is-awakening");
@@ -1009,92 +1004,6 @@
   function inferLineEntry(params) {
     if (params.get("utm_source") === "line") return params.get("utm_medium") || "line_url";
     return "";
-  }
-
-  async function ensureLineHarnessIdentityForStart() {
-    if (!CONFIG.lineHarness.enabled || !CONFIG.lineHarness.liffId) {
-      return { ready: false, redirected: false };
-    }
-
-    const lineContext = getLineContext();
-    if (lineContext.userId || cachedLineHarnessIdentity?.idToken || cachedLineHarnessIdentity?.lineUserId) {
-      clearLineHarnessStartRedirectFlag();
-      return { ready: true, redirected: false };
-    }
-
-    const started = primeLineHarnessIdentityFromLiff({ force: true });
-    if (started) {
-      const identity = await withTimeout(started, 1600);
-      if (identity?.idToken || identity?.lineUserId) {
-        clearLineHarnessStartRedirectFlag();
-        return { ready: true, redirected: false };
-      }
-    }
-
-    if (shouldRedirectToLineHarnessLiff()) {
-      markLineHarnessStartRedirected();
-      location.href = buildLineHarnessAppUrl();
-      return { ready: false, redirected: true };
-    }
-
-    return { ready: false, redirected: false };
-  }
-
-  function shouldRedirectToLineHarnessLiff() {
-    if (!isLineInAppBrowser()) {
-      return false;
-    }
-    if (enteredFromLiff || hasLineHarnessStartRedirected()) {
-      return false;
-    }
-    return !getLineContext().userId;
-  }
-
-  function buildLineHarnessAppUrl() {
-    const entry = getLineContext().entry || initialSearchParams.get("ref") || "line";
-    const params = new URLSearchParams({
-      liffId: CONFIG.lineHarness.liffId,
-      ref: entry,
-      redirect: buildLineHarnessRedirectUrl(entry)
-    });
-    return `https://line.me/R/app/${CONFIG.lineHarness.liffId}?${params.toString()}`;
-  }
-
-  function buildLineHarnessRedirectUrl(entry) {
-    const url = new URL(location.href);
-    url.searchParams.delete("liff.state");
-    if (!url.searchParams.get("utm_source")) {
-      url.searchParams.set("utm_source", "line");
-    }
-    if (entry && !url.searchParams.get("entry")) {
-      url.searchParams.set("entry", entry);
-    }
-    url.hash = "";
-    return url.toString();
-  }
-
-  function hasLineHarnessStartRedirected() {
-    try {
-      return sessionStorage.getItem(CONFIG.lineHarness.startRedirectKey) === "1";
-    } catch {
-      return false;
-    }
-  }
-
-  function markLineHarnessStartRedirected() {
-    try {
-      sessionStorage.setItem(CONFIG.lineHarness.startRedirectKey, "1");
-    } catch {
-      // sessionStorage may be unavailable in restricted in-app browsers.
-    }
-  }
-
-  function clearLineHarnessStartRedirectFlag() {
-    try {
-      sessionStorage.removeItem(CONFIG.lineHarness.startRedirectKey);
-    } catch {
-      // sessionStorage may be unavailable in restricted in-app browsers.
-    }
   }
 
   function initLineHarnessLiff() {
