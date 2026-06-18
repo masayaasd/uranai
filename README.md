@@ -40,8 +40,6 @@ Lハーネス管理画面から確認した本番値を `app.js` に設定済み
 
 ```js
 const CONFIG = {
-  lineUrl: "https://line-harness.takumi-baseball04010.workers.dev/auth/line",
-  lineRef: "ryujin_diagnosis",
   storageKey: "ryujin_diagnoses_v1",
   lineHarness: {
     enabled: true,
@@ -79,12 +77,12 @@ ALLOWED_ORIGINS=https://your-diagnosis-domain.example
 
 `LINE_HARNESS_API_KEY` は必ずCloudflareの環境変数またはSecretとして設定してください。`app.js`、HTML、READMEへ実キーを書かないでください。
 
-リッチメニューと配信URLは、診断ページの直リンクではなく、Lハーネスの `auth/line` URLに診断ページURLを `redirect` で付けたものを使ってください。
+リッチメニューと配信URLは、診断ページのURLを直接使ってください。
 
 形式:
 
 ```text
-https://line-harness.takumi-baseball04010.workers.dev/auth/line?ref=ryujin_diagnosis&redirect=<診断ページURLをURLエンコードしたもの>
+https://uranai-5ua.pages.dev/?utm_source=line&entry=rich_menu
 ```
 
 Lハーネス側に登録済みのLIFF IDは以下です。

@@ -50,16 +50,16 @@ ALLOWED_ORIGINS=https://ryujin-diagnosis.pages.dev
 
 ## LINEで配信するURL
 
-公開URLが決まったら、リッチメニューや配信メッセージには以下の形式のURLを使います。
+リッチメニューや配信メッセージには、診断ページのURLを直接使います。
 
 ```text
-https://line-harness.takumi-baseball04010.workers.dev/auth/line?ref=ryujin_diagnosis&redirect=<診断ページURLをURLエンコードしたもの>
+https://uranai-5ua.pages.dev/?utm_source=line&entry=rich_menu
 ```
 
-例:
+配信別に見分けたい場合は `entry` だけ変えてください。
 
 ```text
-https://line-harness.takumi-baseball04010.workers.dev/auth/line?ref=ryujin_diagnosis&redirect=https%3A%2F%2Fryujin-diagnosis.pages.dev%2F
+https://uranai-5ua.pages.dev/?utm_source=line&entry=broadcast
 ```
 
 ## 公開後の確認
@@ -83,7 +83,7 @@ https://line-harness.takumi-baseball04010.workers.dev/auth/line?ref=ryujin_diagn
 
 ## うまくタグが付かない時
 
-- LINE配信用URLではなく、診断ページの直リンクで開いていないか確認します。
+- 診断ページURLが `https://uranai-5ua.pages.dev/` になっているか確認します。
 - `LINE_HARNESS_API_KEY` がCloudflare Pagesに登録されているか確認します。
 - `ALLOWED_ORIGINS` が実際の公開URLと一致しているか確認します。
 - Lハーネス側に友だち登録済みのユーザーでテストしているか確認します。

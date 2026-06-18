@@ -2,8 +2,6 @@
   "use strict";
 
   const CONFIG = {
-    lineUrl: "https://line-harness.takumi-baseball04010.workers.dev/auth/line",
-    lineRef: "ryujin_diagnosis",
     storageKey: "ryujin_diagnoses_v1",
     lineHarness: {
       enabled: true,
@@ -805,21 +803,6 @@
   function inferLineEntry(params) {
     if (params.get("utm_source") === "line") return params.get("utm_medium") || "line_url";
     return "";
-  }
-
-  function buildLineAuthUrl() {
-    const url = new URL(CONFIG.lineUrl);
-    if (CONFIG.lineRef && !url.searchParams.get("ref")) {
-      url.searchParams.set("ref", CONFIG.lineRef);
-    }
-    url.searchParams.set("redirect", currentPageUrl());
-    return url.toString();
-  }
-
-  function currentPageUrl() {
-    const url = new URL(location.href);
-    url.hash = "";
-    return url.toString();
   }
 
   async function sendLineHarnessTags(result, eventName) {
