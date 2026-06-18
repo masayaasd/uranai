@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "rm -rf dist && mkdir -p dist && cp -R index.html app.js styles.css assets _headers dist/",
-    "check": "node --check app.js && node --check functions/api/diagnosis-tags.js",
+    "build": "rm -rf dist && mkdir -p dist && cp -R index.html records.html app.js records.js styles.css records.css assets _headers dist/",
+    "check": "node --check app.js && node --check records.js && node --check functions/api/diagnosis-tags.js && node --check functions/api/diagnosis-records.js",
     "dev": "npm run build && wrangler pages dev dist --functions=functions",
     "deploy": "npm run build && wrangler pages deploy dist --project-name ryujin-diagnosis"
   },
