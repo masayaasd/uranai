@@ -50,23 +50,23 @@ ALLOWED_ORIGINS=https://ryujin-diagnosis.pages.dev
 
 ## LINEで配信するURL
 
-リッチメニューや配信メッセージには、診断ページのURLを直接使います。
+リッチメニューや配信メッセージには、LハーネスのLIFF URLに診断ページへの `redirect` を付けたURLを使います。
 
 ```text
-https://uranai-5ua.pages.dev/?utm_source=line&entry=rich_menu
+https://liff.line.me/2010382261-EjL1dqOH?liffId=2010382261-EjL1dqOH&ref=ryujin_diagnosis&redirect=https%3A%2F%2Furanai-5ua.pages.dev%2Ft%2F%3Futm_source%3Dline%26entry%3Drich_menu
 ```
 
 配信別に見分けたい場合は `entry` だけ変えてください。
 
 ```text
-https://uranai-5ua.pages.dev/?utm_source=line&entry=broadcast
+https://liff.line.me/2010382261-EjL1dqOH?liffId=2010382261-EjL1dqOH&ref=ryujin_diagnosis&redirect=https%3A%2F%2Furanai-5ua.pages.dev%2Ft%2F%3Futm_source%3Dline%26entry%3Dbroadcast
 ```
 
 ## 公開後の確認
 
 1. 公開URLをスマホで開いてトップページが表示されるか確認します。
 2. LINE配信用URLから診断ページを開きます。
-3. 診断開始時にLINEログイン確認が出た場合は許可して、診断ページへ戻ります。
+3. LハーネスのLIFF確認後、診断ページへ戻ることを確認します。
 4. 診断を最後まで回答します。
 5. Lハーネス管理画面で該当ユーザーにタグが付いているか確認します。
 
@@ -84,8 +84,8 @@ https://uranai-5ua.pages.dev/?utm_source=line&entry=broadcast
 
 ## うまくタグが付かない時
 
-- 診断ページURLが `https://uranai-5ua.pages.dev/` になっているか確認します。
+- 配信URLが `https://liff.line.me/2010382261-EjL1dqOH?...&redirect=...` の形式になっているか確認します。
+- 診断ページに戻ったURLに `lu=` が付いているか確認します。
 - `LINE_HARNESS_API_KEY` がCloudflare Pagesに登録されているか確認します。
 - `ALLOWED_ORIGINS` が実際の公開URLと一致しているか確認します。
-- 診断開始時にLINEログインを許可しているか確認します。
 - Lハーネス側に友だち登録済みのユーザーでテストしているか確認します。

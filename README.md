@@ -45,7 +45,10 @@ const CONFIG = {
     enabled: true,
     endpoint: "/api/diagnosis-tags",
     liffId: "2010382261-EjL1dqOH",
-    userIdParams: ["line_user_id", "lh_uid", "lhUserId", "uid", "userId"],
+    liffUrl: "https://liff.line.me/2010382261-EjL1dqOH",
+    refCode: "ryujin_diagnosis",
+    redirectPath: "/t/",
+    userIdParams: ["line_user_id", "lh_uid", "lhUserId", "uid", "userId", "lu"],
     entryParams: ["entry", "lh_entry", "route", "utm_content"]
   }
 };
@@ -54,7 +57,7 @@ const CONFIG = {
 ## Lハーネスタグ連携
 
 診断完了時とLINE CTAクリック時に、診断結果から作ったタグをLハーネスへPOSTできます。
-公開フロントにLハーネスのAPIキーは置きません。診断ページはLIFF SDKから取得した `idToken` と診断結果だけを `/api/diagnosis-tags` へ送ります。
+公開フロントにLハーネスのAPIキーは置きません。診断ページはLIFF SDKから取得した `idToken`、またはLハーネスのLIFF導線から戻された `lu` と診断結果だけを `/api/diagnosis-tags` へ送ります。
 
 中継APIは Cloudflare Pages Functions として `functions/api/diagnosis-tags.js` に実装済みです。
 
@@ -77,13 +80,15 @@ ALLOWED_ORIGINS=https://your-diagnosis-domain.example
 
 `LINE_HARNESS_API_KEY` は必ずCloudflareの環境変数またはSecretとして設定してください。`app.js`、HTML、READMEへ実キーを書かないでください。
 
-リッチメニューと配信URLは、診断ページのURLを直接使ってください。
+リッチメニューと配信URLは、LハーネスのLIFF URLに診断ページへの `redirect` を付けて使ってください。
 
 形式:
 
 ```text
-https://uranai-5ua.pages.dev/?utm_source=line&entry=rich_menu
+https://liff.line.me/2010382261-EjL1dqOH?liffId=2010382261-EjL1dqOH&ref=ryujin_diagnosis&redirect=https%3A%2F%2Furanai-5ua.pages.dev%2Ft%2F%3Futm_source%3Dline%26entry%3Drich_menu
 ```
+
+このURLで開くと、Lハーネスで友だち情報をひも付けた後、診断ページへ戻ります。診断ページへ戻る際にLハーネスが `lu` を付けた場合、そのLINEユーザーIDを使ってタグ付けします。
 
 Lハーネス側に登録済みのLIFF IDは以下です。
 

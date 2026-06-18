@@ -8,7 +8,7 @@
 POST /api/diagnosis-tags
 ```
 
-診断ページの `app.js` は、このエンドポイントへLIFFの `idToken` と診断結果を送信します。
+診断ページの `app.js` は、このエンドポイントへLIFFの `idToken`、またはLハーネスLIFF導線から戻った `lu` と診断結果を送信します。
 
 ## 環境変数
 
@@ -25,7 +25,7 @@ ALLOWED_ORIGINS=https://your-diagnosis-domain.example
 
 ## 処理内容
 
-1. LINEの `idToken` を検証
+1. LINEの `idToken` を検証、またはLハーネスから戻ったLINEユーザーIDを受け取る
 2. Lハーネスの友だちIDを解決
 3. 診断結果タグを作成または取得
 4. 友だちへタグ付け
@@ -33,4 +33,4 @@ ALLOWED_ORIGINS=https://your-diagnosis-domain.example
 
 ## 注意
 
-診断ページがLIFF内で開かれていない場合、`idToken` が取得できないためタグ送信はスキップされます。リッチメニューと配信URLは、LIFFで診断ページへ到達する導線にしてください。
+リッチメニューと配信URLは、LハーネスのLIFF URLに診断ページへの `redirect` を付けた形式にしてください。診断ページを直接配信すると、LINEユーザーを特定できずタグ送信できない場合があります。

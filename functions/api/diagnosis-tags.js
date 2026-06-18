@@ -22,16 +22,19 @@ export async function onRequest(context) {
 
     const body = await request.json();
     const idToken = stringValue(body.idToken);
+    const lineUserIdHint = normalizeLineUserId(body.lineUserIdHint);
     const event = stringValue(body.event);
 
-    if (!idToken) {
-      return json({ success: false, error: "idToken is required" }, 400, headers);
+    if (!idToken && !lineUserIdHint) {
+      return json({ success: false, error: "LINE identity is required" }, 400, headers);
     }
     if (!ALLOWED_EVENTS.has(event)) {
       return json({ success: false, error: "event is invalid" }, 400, headers);
     }
 
-    const verified = await verifyLineIdToken(idToken, env);
+    const verified = idToken
+      ? await verifyLineIdToken(idToken, env)
+      : { lineUserId: lineUserIdHint, name: "", email: "" };
     if (!verified.lineUserId) {
       return json({ success: false, error: "Invalid ID token" }, 401, headers);
     }
@@ -57,6 +60,7 @@ export async function onRequest(context) {
       data: {
         friendId: friend.id,
         lineUserId: verified.lineUserId,
+        identitySource: idToken ? "id_token" : "line_user_id_hint",
         assignedTags,
         metadata
       }
@@ -92,6 +96,11 @@ function json(payload, status = 200, headers = {}) {
 
 function stringValue(value) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function normalizeLineUserId(value) {
+  const id = stringValue(value);
+  return /^U[a-fA-F0-9]{32}$/.test(id) ? id : "";
 }
 
 async function verifyLineIdToken(idToken, env) {

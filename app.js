@@ -7,7 +7,10 @@
       enabled: true,
       endpoint: "/api/diagnosis-tags",
       liffId: "2010382261-EjL1dqOH",
-      userIdParams: ["line_user_id", "lh_uid", "lhUserId", "uid", "userId"],
+      liffUrl: "https://liff.line.me/2010382261-EjL1dqOH",
+      refCode: "ryujin_diagnosis",
+      redirectPath: "/t/",
+      userIdParams: ["line_user_id", "lh_uid", "lhUserId", "uid", "userId", "lu"],
       entryParams: ["entry", "lh_entry", "route", "utm_content"]
     }
   };
@@ -815,12 +818,29 @@
   }
 
   async function prepareLineHarnessSession() {
-    if (!CONFIG.lineHarness.enabled || !CONFIG.lineHarness.liffId || !window.liff) {
+    const lineContext = getLineContext();
+    if (lineContext.userId) {
       return false;
     }
-    await initLineHarnessLiff();
+
+    if (!CONFIG.lineHarness.enabled || !CONFIG.lineHarness.liffId) {
+      return false;
+    }
+
+    if (!window.liff) {
+      redirectToLineHarnessLiff();
+      return true;
+    }
+
+    try {
+      await initLineHarnessLiff();
+    } catch {
+      redirectToLineHarnessLiff();
+      return true;
+    }
+
     if (!window.liff.isLoggedIn()) {
-      window.liff.login({ redirectUri: currentPageUrl() });
+      redirectToLineHarnessLiff();
       return true;
     }
     return false;
@@ -839,6 +859,27 @@
     return url.toString();
   }
 
+  function lineHarnessReturnUrl() {
+    const url = new URL(location.href);
+    url.pathname = CONFIG.lineHarness.redirectPath || "/";
+    url.hash = "";
+    if (!url.searchParams.get("utm_source")) url.searchParams.set("utm_source", "line");
+    if (!url.searchParams.get("entry")) url.searchParams.set("entry", "rich_menu");
+    return url.toString();
+  }
+
+  function buildLineHarnessLiffUrl() {
+    const url = new URL(CONFIG.lineHarness.liffUrl || `https://liff.line.me/${CONFIG.lineHarness.liffId}`);
+    url.searchParams.set("liffId", CONFIG.lineHarness.liffId);
+    if (CONFIG.lineHarness.refCode) url.searchParams.set("ref", CONFIG.lineHarness.refCode);
+    url.searchParams.set("redirect", lineHarnessReturnUrl());
+    return url.toString();
+  }
+
+  function redirectToLineHarnessLiff() {
+    window.location.href = buildLineHarnessLiffUrl();
+  }
+
   async function sendLineHarnessTags(result, eventName) {
     const statusBase = { eventName, occurredAt: new Date().toISOString() };
     if (!CONFIG.lineHarness.enabled || !CONFIG.lineHarness.endpoint) {
@@ -854,11 +895,11 @@
       return;
     }
 
-    if (!identity.idToken) {
+    if (!identity.idToken && !identity.lineUserId) {
       updateLineHarnessStatus(result.diagnosisId, {
         ...statusBase,
         status: "skipped",
-        error: identity.error || "missing_liff_id_token",
+        error: identity.error || "missing_line_identity",
         lineUserId: identity.lineUserId || ""
       });
       return;
@@ -899,6 +940,9 @@
     const lineContext = getLineContext();
     if (!CONFIG.lineHarness.liffId) {
       return { idToken: "", lineUserId: lineContext.userId, error: "missing_liff_id" };
+    }
+    if (lineContext.userId) {
+      return { idToken: "", lineUserId: lineContext.userId, error: "" };
     }
     if (!window.liff) {
       return { idToken: "", lineUserId: lineContext.userId, error: "liff_sdk_not_loaded" };
