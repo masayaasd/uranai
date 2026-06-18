@@ -196,7 +196,7 @@
   }
 
   function handleHash() {
-    const route = location.hash.replace("#", "") || "home";
+    const route = location.hash.replace("#", "");
     if (route === "result" && state.result) {
       state.step = "result";
       render();
@@ -798,10 +798,16 @@
         saveRecord(state.result);
         sendLineHarnessTags(state.result, "diagnosis_completed");
         state.step = "result";
-        location.hash = "result";
+        setRouteHash("result");
         render();
       }
     }, 950);
+  }
+
+  function setRouteHash(route) {
+    const url = new URL(location.href);
+    url.hash = route;
+    history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
   }
 
   function buildResult() {
