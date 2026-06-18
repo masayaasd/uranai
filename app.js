@@ -185,6 +185,7 @@
 
   document.addEventListener("click", handleClick);
   window.addEventListener("hashchange", handleHash);
+  restoreLiffStateFromUrl();
   captureLineHarnessIdentityFromUrl();
   handleHash();
   startAuraCanvas();
@@ -209,7 +210,7 @@
 
   function continueLineHarnessStart() {
     const params = new URLSearchParams(location.search);
-    if (params.get("resume") !== "start" || !getLineContext().userId) {
+    if (params.get("resume") !== "start") {
       return;
     }
 
@@ -220,6 +221,27 @@
 
     state.step = "consent";
     render();
+  }
+
+  function restoreLiffStateFromUrl() {
+    const params = new URLSearchParams(location.search);
+    const liffState = params.get("liff.state");
+    if (!liffState) {
+      return;
+    }
+
+    const stateParams = new URLSearchParams(liffState.startsWith("?") ? liffState.slice(1) : liffState);
+    const redirect = stateParams.get("redirect");
+    if (!redirect) {
+      return;
+    }
+
+    const redirectUrl = new URL(redirect, location.origin);
+    if (redirectUrl.origin !== location.origin) {
+      return;
+    }
+
+    history.replaceState(null, "", `${redirectUrl.pathname}${redirectUrl.search}${redirectUrl.hash}`);
   }
 
   function captureLineHarnessIdentityFromUrl() {
