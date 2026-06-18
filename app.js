@@ -185,8 +185,10 @@
 
   document.addEventListener("click", handleClick);
   window.addEventListener("hashchange", handleHash);
-  primeLineHarnessLiffFromState();
-  restoreLiffStateFromUrl();
+  const restoresAfterLiffInit = primeLineHarnessLiffFromState();
+  if (!restoresAfterLiffInit) {
+    restoreLiffStateFromUrl();
+  }
   captureLineHarnessIdentityFromUrl();
   handleHash();
   startAuraCanvas();
@@ -199,11 +201,14 @@
   function primeLineHarnessLiffFromState() {
     const params = new URLSearchParams(location.search);
     if (!params.has("liff.state") || !CONFIG.lineHarness.enabled || !CONFIG.lineHarness.liffId || !window.liff) {
-      return;
+      return false;
     }
-    initLineHarnessLiff().catch(() => {
-      lineHarnessInitPromise = null;
-    });
+    initLineHarnessLiff()
+      .catch(() => {
+        lineHarnessInitPromise = null;
+      })
+      .finally(restoreLiffStateFromUrl);
+    return true;
   }
 
   function handleHash() {
