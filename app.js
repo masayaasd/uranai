@@ -184,15 +184,43 @@
 
   document.addEventListener("click", handleClick);
   window.addEventListener("hashchange", handleHash);
-  primeLineHarnessIdentityFromLiff();
-  restoreLiffStateFromUrl();
-  captureLineHarnessIdentityFromUrl();
-  primeLineHarnessIdentityFromLiff();
-  handleHash();
-  startAuraCanvas();
+  bootstrap();
 
   function q(id, text, axis) {
     return { id, text, axis };
+  }
+
+  async function bootstrap() {
+    if (shouldWaitForLineHarnessLiff()) {
+      renderBootLoading();
+      await settleLineHarnessIdentity();
+    }
+    restoreLiffStateFromUrl();
+    captureLineHarnessIdentityFromUrl();
+    primeLineHarnessIdentityFromLiff({ force: true });
+    handleHash();
+    startAuraCanvas();
+  }
+
+  function shouldWaitForLineHarnessLiff() {
+    return enteredFromLiff && CONFIG.lineHarness.enabled && CONFIG.lineHarness.liffId && window.liff;
+  }
+
+  async function settleLineHarnessIdentity() {
+    const identityPromise = primeLineHarnessIdentityFromLiff({ force: true });
+    if (!identityPromise) return;
+    await withTimeout(identityPromise, 2500);
+  }
+
+  function renderBootLoading() {
+    app.innerHTML = `
+      <section class="screen">
+        <div class="panel">
+          <span class="eyebrow">診断ページを準備中</span>
+          <h2>LINE連携を確認しています</h2>
+        </div>
+      </section>
+    `;
   }
 
   function handleHash() {
