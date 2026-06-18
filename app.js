@@ -185,6 +185,7 @@
 
   document.addEventListener("click", handleClick);
   window.addEventListener("hashchange", handleHash);
+  primeLineHarnessLiffFromState();
   restoreLiffStateFromUrl();
   captureLineHarnessIdentityFromUrl();
   handleHash();
@@ -193,6 +194,16 @@
 
   function q(id, text, axis) {
     return { id, text, axis };
+  }
+
+  function primeLineHarnessLiffFromState() {
+    const params = new URLSearchParams(location.search);
+    if (!params.has("liff.state") || !CONFIG.lineHarness.enabled || !CONFIG.lineHarness.liffId || !window.liff) {
+      return;
+    }
+    initLineHarnessLiff().catch(() => {
+      lineHarnessInitPromise = null;
+    });
   }
 
   function handleHash() {
