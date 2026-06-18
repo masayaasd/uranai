@@ -7,11 +7,7 @@
       enabled: true,
       endpoint: "/api/diagnosis-tags",
       liffId: "2010382261-EjL1dqOH",
-      liffUrl: "https://liff.line.me/2010382261-EjL1dqOH",
-      refCode: "yt_line",
-      redirectPath: "/t/",
       sessionKey: "ryujin_line_user_id",
-      pendingStartKey: "ryujin_pending_start",
       userIdParams: ["line_user_id", "lh_uid", "lhUserId", "uid", "userId", "lu"],
       entryParams: ["entry", "lh_entry", "route", "utm_content"]
     }
@@ -20,7 +16,6 @@
   let lineHarnessInitPromise = null;
   let lineHarnessIdentityPromise = null;
   let sessionLineUserId = "";
-  let restoredStartFromLiffState = false;
 
   const AXES = {
     money: { label: "金運不安度", type: "white" },
@@ -186,49 +181,13 @@
 
   document.addEventListener("click", handleClick);
   window.addEventListener("hashchange", handleHash);
-  bootstrap();
+  restoreLiffStateFromUrl();
+  captureLineHarnessIdentityFromUrl();
+  handleHash();
+  startAuraCanvas();
 
   function q(id, text, axis) {
     return { id, text, axis };
-  }
-
-  async function bootstrap() {
-    if (shouldPrimeLineHarnessLiff()) {
-      renderBootLoading();
-      await settleLineHarnessLiffInit();
-    }
-    restoreLiffStateFromUrl();
-    captureLineHarnessIdentityFromUrl();
-    handleHash();
-    startAuraCanvas();
-    continueLineHarnessStart();
-  }
-
-  function shouldPrimeLineHarnessLiff() {
-    const params = new URLSearchParams(location.search);
-    return params.has("liff.state") && CONFIG.lineHarness.enabled && CONFIG.lineHarness.liffId && window.liff;
-  }
-
-  async function settleLineHarnessLiffInit() {
-    try {
-      await Promise.race([
-        initLineHarnessLiff(),
-        new Promise(resolve => window.setTimeout(resolve, 2500))
-      ]);
-    } catch {
-      lineHarnessInitPromise = null;
-    }
-  }
-
-  function renderBootLoading() {
-    app.innerHTML = `
-      <section class="screen">
-        <div class="panel">
-          <span class="eyebrow">診断ページを準備中</span>
-          <h2>LINE連携を確認しています</h2>
-        </div>
-      </section>
-    `;
   }
 
   function handleHash() {
@@ -242,45 +201,6 @@
       resetFlow();
     }
     render();
-  }
-
-  function continueLineHarnessStart() {
-    const params = new URLSearchParams(location.search);
-    if (params.get("resume") !== "start") {
-      return;
-    }
-
-    removeResumeParam();
-    if (!consumePendingLineHarnessStart() && !restoredStartFromLiffState) {
-      return;
-    }
-
-    state.step = "consent";
-    render();
-  }
-
-  function removeResumeParam() {
-    const cleanUrl = new URL(location.href);
-    cleanUrl.searchParams.delete("resume");
-    history.replaceState(null, "", `${cleanUrl.pathname}${cleanUrl.search}${cleanUrl.hash}`);
-  }
-
-  function markPendingLineHarnessStart() {
-    try {
-      sessionStorage.setItem(CONFIG.lineHarness.pendingStartKey, String(Date.now()));
-    } catch {
-      // The flow can still continue manually if storage is unavailable.
-    }
-  }
-
-  function consumePendingLineHarnessStart() {
-    try {
-      const stored = Number(sessionStorage.getItem(CONFIG.lineHarness.pendingStartKey) || 0);
-      sessionStorage.removeItem(CONFIG.lineHarness.pendingStartKey);
-      return stored > 0 && Date.now() - stored < 10 * 60 * 1000;
-    } catch {
-      return false;
-    }
   }
 
   function restoreLiffStateFromUrl() {
@@ -301,7 +221,6 @@
       return;
     }
 
-    restoredStartFromLiffState = redirectUrl.searchParams.get("resume") === "start";
     history.replaceState(null, "", `${redirectUrl.pathname}${redirectUrl.search}${redirectUrl.hash}`);
   }
 
@@ -352,21 +271,13 @@
   function runAction(action, element) {
     state.error = "";
     if (action === "start") {
-      prepareLineHarnessSession()
-        .then((redirecting) => {
-          if (redirecting) return;
-          const shell = document.querySelector(".app-shell");
-          shell?.classList.add("is-awakening");
-          window.setTimeout(() => {
-            shell?.classList.remove("is-awakening");
-            state.step = "consent";
-            render();
-          }, 760);
-        })
-        .catch(() => {
-          state.step = "consent";
-          render();
-        });
+      const shell = document.querySelector(".app-shell");
+      shell?.classList.add("is-awakening");
+      window.setTimeout(() => {
+        shell?.classList.remove("is-awakening");
+        state.step = "consent";
+        render();
+      }, 760);
       return;
     }
     if (action === "consent") {
@@ -1074,69 +985,11 @@
     return "";
   }
 
-  async function prepareLineHarnessSession() {
-    const lineContext = getLineContext();
-    if (lineContext.userId) {
-      return false;
-    }
-
-    if (!CONFIG.lineHarness.enabled || !CONFIG.lineHarness.liffId) {
-      return false;
-    }
-
-    if (!window.liff) {
-      redirectToLineHarnessLiff();
-      return true;
-    }
-
-    try {
-      await initLineHarnessLiff();
-    } catch {
-      redirectToLineHarnessLiff();
-      return true;
-    }
-
-    if (!window.liff.isLoggedIn()) {
-      redirectToLineHarnessLiff();
-      return true;
-    }
-    return false;
-  }
-
   function initLineHarnessLiff() {
     if (!lineHarnessInitPromise) {
       lineHarnessInitPromise = window.liff.init({ liffId: CONFIG.lineHarness.liffId });
     }
     return lineHarnessInitPromise;
-  }
-
-  function currentPageUrl() {
-    const url = new URL(location.href);
-    url.hash = "";
-    return url.toString();
-  }
-
-  function lineHarnessReturnUrl() {
-    const url = new URL(location.href);
-    url.pathname = CONFIG.lineHarness.redirectPath || "/";
-    url.hash = "";
-    if (!url.searchParams.get("utm_source")) url.searchParams.set("utm_source", "line");
-    if (!url.searchParams.get("entry")) url.searchParams.set("entry", CONFIG.lineHarness.refCode || "line_url");
-    url.searchParams.set("resume", "start");
-    return url.toString();
-  }
-
-  function buildLineHarnessLiffUrl() {
-    const url = new URL(CONFIG.lineHarness.liffUrl || `https://liff.line.me/${CONFIG.lineHarness.liffId}`);
-    url.searchParams.set("liffId", CONFIG.lineHarness.liffId);
-    if (CONFIG.lineHarness.refCode) url.searchParams.set("ref", CONFIG.lineHarness.refCode);
-    url.searchParams.set("redirect", lineHarnessReturnUrl());
-    return url.toString();
-  }
-
-  function redirectToLineHarnessLiff() {
-    markPendingLineHarnessStart();
-    window.location.href = buildLineHarnessLiffUrl();
   }
 
   async function sendLineHarnessTags(result, eventName) {
