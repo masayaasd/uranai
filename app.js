@@ -164,6 +164,7 @@
     scores[question.axis] += MAX_ANSWER_VALUE;
     return scores;
   }, { money: 0, family: 0, healing: 0, action: 0 });
+  const AXIS_TIE_PRIORITY = { action: 4, family: 3, healing: 2, money: 1 };
 
   const state = {
     step: "home",
@@ -581,7 +582,7 @@
         <div class="panel">
           <h2>${main.theme}</h2>
           <p>${personalGreeting(result)}</p>
-          ${scoreRadarHtml(result.scores)}
+          ${scoreRadarHtml(result.adjustedScores || normalizeAxisScores(result.scores), result.scores)}
         </div>
 
         ${resultSection("あなたの本質", main.essence)}
@@ -619,7 +620,7 @@
     `;
   }
 
-  function scoreRadarHtml(scores) {
+  function scoreRadarHtml(scores, rawScores = scores) {
     const center = 130;
     const radius = 76;
     const labelPositions = {
@@ -638,8 +639,7 @@
     const pointsToString = points => points.map(point => `${point.x},${point.y}`).join(" ");
     const gridLevels = [0.25, 0.5, 0.75, 1];
     const dataPoints = SCORE_AXIS_ORDER.map((axis, index) => {
-      const max = AXIS_MAX_SCORES[axis] || 1;
-      return pointFor(index, Math.max(0, Math.min(1, scores[axis] / max)));
+      return pointFor(index, Math.max(0, Math.min(1, (scores[axis] || 0) / 100)));
     });
     return `
       <div class="radar-card" aria-label="診断スコア">
@@ -679,14 +679,14 @@
         </div>
         <div class="radar-stats">
           ${SCORE_AXIS_ORDER.map(axis => {
-            const score = scores[axis];
+            const score = Math.round(scores[axis] || 0);
+            const raw = rawScores[axis] || 0;
             const max = AXIS_MAX_SCORES[axis] || 1;
-            const percent = Math.round((score / max) * 100);
             return `
               <div class="radar-stat radar-stat-${AXES[axis].type}">
                 <span>${AXES[axis].label}</span>
-                <strong>${score}<small>/${max}</small></strong>
-                <em>${percent}%</em>
+                <strong>${score}<small>%</small></strong>
+                <em>${raw}/${max}</em>
               </div>
             `;
           }).join("")}
@@ -763,7 +763,10 @@
     Object.values(state.answers).forEach(answer => {
       scores[answer.axis] += answer.value;
     });
-    const ranked = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+    const normalizedScores = normalizeAxisScores(scores);
+    const axisBonuses = buildAxisBonuses();
+    const adjustedScores = buildAdjustedScores(normalizedScores, axisBonuses);
+    const ranked = rankAxes(adjustedScores, normalizedScores, scores);
     const mainType = AXES[ranked[0][0]].type;
     const subType = AXES[ranked[1][0]].type;
     const result = {
@@ -776,6 +779,9 @@
       mainTypeName: TYPES[mainType].name,
       subLabel: SUB_LABELS[`${mainType}_${subType}`] || `${TYPES[mainType].title}｜${TYPES[mainType].theme}`,
       scores,
+      normalizedScores,
+      adjustedScores,
+      axisBonuses,
       tags: buildTags(mainType),
       basics: { ...state.basics },
       marketing: { ...state.marketing },
@@ -785,6 +791,94 @@
       source: getSource()
     };
     return result;
+  }
+
+  function normalizeAxisScores(scores) {
+    return SCORE_AXIS_ORDER.reduce((normalized, axis) => {
+      const max = AXIS_MAX_SCORES[axis] || 1;
+      normalized[axis] = Math.round(((scores[axis] || 0) / max) * 100);
+      return normalized;
+    }, {});
+  }
+
+  function buildAxisBonuses() {
+    const bonuses = { money: 0, family: 0, healing: 0, action: 0 };
+    const concern = state.marketing.mainConcern || "";
+    const interest = state.marketing.interestTheme || "";
+    const buyingIntent = state.marketing.buyingIntent || "";
+    const family = state.marketing.familyStructure || "";
+
+    if (["毎月の支払い", "貯金が増えない", "急な出費"].includes(concern)) {
+      bonuses.money += 2;
+    }
+    if (concern === "老後資金") {
+      bonuses.money += 3;
+    }
+    if (concern === "借金・ローン") {
+      bonuses.money += 4;
+    }
+    if (concern === "家族への支援") {
+      bonuses.family += 8;
+    }
+    if (concern === "孤独や不安") {
+      bonuses.healing += 8;
+    }
+    if (concern === "収入を増やしたい") {
+      bonuses.action += 8;
+    }
+
+    if (["子供と同居", "親と同居", "子供は独立している"].includes(family)) {
+      bonuses.family += 3;
+    }
+
+    if (interest === "財布") {
+      bonuses.money += 2;
+    }
+    if (interest === "資産形成") {
+      bonuses.money += 3;
+    }
+    if (["家の運気", "玄関", "神社"].includes(interest)) {
+      bonuses.family += 3;
+    }
+    if (["龍神", "祈り・祝詞", "暦", "トイレ"].includes(interest)) {
+      bonuses.healing += 3;
+    }
+    if (["副業", "個別鑑定"].includes(interest)) {
+      bonuses.action += 3;
+    }
+
+    if (buyingIntent === "すぐに受けてみたい") {
+      bonuses.action += 5;
+    }
+    if (buyingIntent === "内容によっては受けたい") {
+      bonuses.action += 3;
+    }
+    if (buyingIntent === "無料なら受けたい") {
+      bonuses.healing += 2;
+    }
+
+    return bonuses;
+  }
+
+  function buildAdjustedScores(normalizedScores, axisBonuses) {
+    return SCORE_AXIS_ORDER.reduce((adjusted, axis) => {
+      adjusted[axis] = Math.max(0, Math.min(100, (normalizedScores[axis] || 0) + (axisBonuses[axis] || 0)));
+      return adjusted;
+    }, {});
+  }
+
+  function rankAxes(adjustedScores, normalizedScores, rawScores) {
+    return SCORE_AXIS_ORDER
+      .map(axis => [axis, adjustedScores[axis] || 0])
+      .sort((a, b) => {
+        const adjustedDiff = b[1] - a[1];
+        if (adjustedDiff !== 0) return adjustedDiff;
+        const normalizedDiff = (normalizedScores[b[0]] || 0) - (normalizedScores[a[0]] || 0);
+        if (normalizedDiff !== 0) return normalizedDiff;
+        const rawDiff = (rawScores[b[0]] || 0) - (rawScores[a[0]] || 0);
+        if (rawDiff !== 0) return rawDiff;
+        return AXIS_TIE_PRIORITY[b[0]] - AXIS_TIE_PRIORITY[a[0]];
+      });
   }
 
   function buildTags(mainType) {
@@ -1040,7 +1134,10 @@
         mainTypeName: result.mainTypeName,
         subType: result.subType,
         subLabel: result.subLabel,
-        scores: result.scores
+        scores: result.scores,
+        normalizedScores: result.normalizedScores || {},
+        adjustedScores: result.adjustedScores || {},
+        axisBonuses: result.axisBonuses || {}
       },
       profile: {
         nickname: result.basics.nickname || "",
@@ -1122,6 +1219,10 @@
       familyScore: result.scores.family,
       healingScore: result.scores.healing,
       actionScore: result.scores.action,
+      moneyAdjustedScore: Math.round(result.adjustedScores?.money || 0),
+      familyAdjustedScore: Math.round(result.adjustedScores?.family || 0),
+      healingAdjustedScore: Math.round(result.adjustedScores?.healing || 0),
+      actionAdjustedScore: Math.round(result.adjustedScores?.action || 0),
       tags: result.tags,
       source: result.source.source,
       utm_source: result.source.utm_source,
@@ -1155,7 +1256,9 @@
     const columns = [
       "diagnosisId", "createdAt", "nickname", "birthdate", "gender", "ageRange", "prefecture", "occupation",
       "incomeRange", "familyStructure", "mainConcern", "interestTheme", "buyingIntent", "mainTypeName", "subLabel",
-      "freeNote", "moneyScore", "familyScore", "healingScore", "actionScore", "tags", "lineClickedAt", "lineUserId",
+      "freeNote", "moneyScore", "familyScore", "healingScore", "actionScore",
+      "moneyAdjustedScore", "familyAdjustedScore", "healingAdjustedScore", "actionAdjustedScore",
+      "tags", "lineClickedAt", "lineUserId",
       "lineEntry", "lineHarnessStatus", "lineHarnessLastEvent", "lineHarnessSyncedAt", "lineHarnessLastTriedAt",
       "lineHarnessError", "source", "utm_source",
       "utm_medium", "utm_campaign", "youtube_video_id"
