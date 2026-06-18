@@ -48,15 +48,39 @@ export async function onRequest(context) {
       return json({ success: false, error: "Friend not found" }, 404, headers);
     }
 
+    const friendDetail = await resolveFriendDetail(client, friend.id).catch(() => friend);
+    const existingTagNames = new Set((friendDetail?.tags || []).map((tag) => stringValue(tag.name)).filter(Boolean));
     const tagNames = normalizeTags(body.tags);
     const assignedTags = await ensureTags(client, tagNames);
+    const attachedTags = [];
 
     for (const tag of assignedTags) {
-      await client.post(`/api/friends/${encodeURIComponent(friend.id)}/tags`, { tagId: tag.id });
+      if (existingTagNames.has(tag.name)) {
+        attachedTags.push(tag);
+        continue;
+      }
+      try {
+        await client.post(`/api/friends/${encodeURIComponent(friend.id)}/tags`, { tagId: tag.id });
+        attachedTags.push(tag);
+      } catch (error) {
+        const message = publicErrorMessage(error);
+        if (!isDuplicateTagError(message)) {
+          throw error;
+        }
+        attachedTags.push(tag);
+      }
     }
 
     const metadata = buildDiagnosisMetadata(body, tagNames);
-    await client.put(`/api/friends/${encodeURIComponent(friend.id)}/metadata`, metadata);
+    let metadataSynced = true;
+    let metadataError = "";
+    try {
+      await client.put(`/api/friends/${encodeURIComponent(friend.id)}/metadata`, metadata);
+    } catch (error) {
+      metadataSynced = false;
+      metadataError = publicErrorMessage(error);
+      console.warn("LINE Harness metadata sync failed:", metadataError);
+    }
 
     return json({
       success: true,
@@ -65,7 +89,10 @@ export async function onRequest(context) {
         lineUserId: verified.lineUserId,
         identitySource: idToken ? "id_token" : "line_user_id_hint",
         assignedTags,
-        metadata
+        attachedTags,
+        metadata,
+        metadataSynced,
+        metadataError
       }
     }, 200, headers);
   } catch (error) {
@@ -166,6 +193,11 @@ function safeJson(text) {
 async function resolveFriend(client, lineUserId) {
   const profile = await client.post("/api/liff/profile", { lineUserId });
   return profile?.data || null;
+}
+
+async function resolveFriendDetail(client, friendId) {
+  const detail = await client.get(`/api/friends/${encodeURIComponent(friendId)}`);
+  return detail?.data || null;
 }
 
 async function linkLineHarnessFriend(client, body, idToken) {
@@ -285,4 +317,8 @@ function isObject(value) {
 function publicErrorMessage(error) {
   const message = error instanceof Error ? error.message : String(error || "");
   return message.slice(0, 300) || "Internal server error";
+}
+
+function isDuplicateTagError(message) {
+  return /duplicate|unique|already|constraint/i.test(message);
 }
