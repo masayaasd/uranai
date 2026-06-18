@@ -452,7 +452,6 @@ h3 {
   }
 }
 
-.cta-row,
 .action-row {
   display: grid;
   gap: 10px;
@@ -462,7 +461,6 @@ h3 {
 .primary-button,
 .secondary-button,
 .ghost-button,
-.line-button,
 .answer-button {
   min-height: 54px;
   width: 100%;
@@ -487,19 +485,7 @@ h3 {
     0 14px 32px rgba(0, 0, 0, 0.26);
 }
 
-.line-button {
-  border: 1px solid rgba(139, 230, 166, 0.46);
-  color: #062213;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.28), transparent 50%),
-    linear-gradient(135deg, #b9f1c8, #48c977 55%, #197343);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.35),
-    0 14px 34px rgba(42, 183, 91, 0.18);
-}
-
-.primary-button::after,
-.line-button::after {
+.primary-button::after {
   content: "";
   position: absolute;
   top: -120%;
@@ -541,13 +527,11 @@ h3 {
 .primary-button:active,
 .secondary-button:active,
 .ghost-button:active,
-.line-button:active,
 .answer-button:active {
   transform: translateY(1px) scale(0.992);
 }
 
-.trust-list,
-.mini-list {
+.trust-list {
   display: grid;
   gap: 8px;
   margin: 18px 0 0;
@@ -555,16 +539,14 @@ h3 {
   list-style: none;
 }
 
-.trust-list li,
-.mini-list li {
+.trust-list li {
   display: flex;
   gap: 9px;
   color: #e9dccb;
   font-size: 14px;
 }
 
-.trust-list li::before,
-.mini-list li::before {
+.trust-list li::before {
   content: "";
   width: 18px;
   height: 1px;
@@ -1075,32 +1057,6 @@ h3 {
   color: var(--muted);
   font-size: 11px;
   line-height: 1.45;
-}
-
-.tag-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 10px;
-}
-
-.tag {
-  display: inline-flex;
-  align-items: center;
-  min-height: 30px;
-  padding: 5px 9px;
-  border-radius: 8px;
-  color: #f8edd9;
-  border: 1px solid rgba(242, 211, 139, 0.22);
-  background: rgba(255, 250, 240, 0.06);
-  font-size: 12px;
-}
-
-.line-offer {
-  border-color: rgba(107, 191, 154, 0.36);
-  background:
-    linear-gradient(180deg, rgba(107, 191, 154, 0.15), rgba(255, 250, 240, 0.045)),
-    rgba(255, 250, 240, 0.04);
 }
 
 .admin-table-wrap {
