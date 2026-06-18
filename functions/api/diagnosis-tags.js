@@ -40,6 +40,9 @@ export async function onRequest(context) {
     }
 
     const client = createLineHarnessClient(env, apiKey);
+    if (idToken) {
+      await linkLineHarnessFriend(client, body, idToken);
+    }
     const friend = await resolveFriend(client, verified.lineUserId);
     if (!friend?.id) {
       return json({ success: false, error: "Friend not found" }, 404, headers);
@@ -67,7 +70,7 @@ export async function onRequest(context) {
     }, 200, headers);
   } catch (error) {
     console.error("POST /api/diagnosis-tags error:", error);
-    return json({ success: false, error: "Internal server error" }, 500, headers);
+    return json({ success: false, error: publicErrorMessage(error) }, 500, headers);
   }
 }
 
@@ -165,6 +168,29 @@ async function resolveFriend(client, lineUserId) {
   return profile?.data || null;
 }
 
+async function linkLineHarnessFriend(client, body, idToken) {
+  const profile = isObject(body.profile) ? body.profile : {};
+  const source = isObject(body.source) ? body.source : {};
+  const ref = stringValue(body.entry)
+    || stringValue(body.delivery)
+    || stringValue(source.entry)
+    || stringValue(source.utm_source);
+  const displayName = stringValue(profile.nickname);
+
+  try {
+    await client.post("/api/liff/link", {
+      idToken,
+      displayName,
+      ref
+    });
+  } catch (error) {
+    const message = publicErrorMessage(error);
+    if (!message.includes("already") && !message.includes("Friend not found")) {
+      throw error;
+    }
+  }
+}
+
 function normalizeTags(values) {
   if (!Array.isArray(values)) return [];
   const seen = new Set();
@@ -254,4 +280,9 @@ function buildDiagnosisMetadata(body, tagNames) {
 
 function isObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function publicErrorMessage(error) {
+  const message = error instanceof Error ? error.message : String(error || "");
+  return message.slice(0, 300) || "Internal server error";
 }
