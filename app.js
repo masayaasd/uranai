@@ -11,6 +11,7 @@
       refCode: "yt_line",
       redirectPath: "/t/",
       sessionKey: "ryujin_line_user_id",
+      pendingStartKey: "ryujin_pending_start",
       userIdParams: ["line_user_id", "lh_uid", "lhUserId", "uid", "userId", "lu"],
       entryParams: ["entry", "lh_entry", "route", "utm_content"]
     }
@@ -105,7 +106,6 @@
     { id: "nickname", label: "ニックネーム", type: "text", required: true, placeholder: "例：さくら" },
     { id: "birthdate", label: "生年月日", type: "date", required: true },
     { id: "gender", label: "性別", required: true, options: ["女性", "男性", "回答しない"] },
-    { id: "ageRange", label: "年代", required: true, options: ["30代以下", "40代", "50代", "60代", "70代以上"] },
     { id: "prefecture", label: "都道府県", required: true, options: PREFECTURES }
   ];
 
@@ -214,13 +214,37 @@
       return;
     }
 
-    params.delete("resume");
-    const cleanUrl = new URL(location.href);
-    cleanUrl.search = params.toString();
-    history.replaceState(null, "", `${cleanUrl.pathname}${cleanUrl.search}${cleanUrl.hash}`);
+    removeResumeParam();
+    if (!consumePendingLineHarnessStart()) {
+      return;
+    }
 
     state.step = "consent";
     render();
+  }
+
+  function removeResumeParam() {
+    const cleanUrl = new URL(location.href);
+    cleanUrl.searchParams.delete("resume");
+    history.replaceState(null, "", `${cleanUrl.pathname}${cleanUrl.search}${cleanUrl.hash}`);
+  }
+
+  function markPendingLineHarnessStart() {
+    try {
+      sessionStorage.setItem(CONFIG.lineHarness.pendingStartKey, String(Date.now()));
+    } catch {
+      // The flow can still continue manually if storage is unavailable.
+    }
+  }
+
+  function consumePendingLineHarnessStart() {
+    try {
+      const stored = Number(sessionStorage.getItem(CONFIG.lineHarness.pendingStartKey) || 0);
+      sessionStorage.removeItem(CONFIG.lineHarness.pendingStartKey);
+      return stored > 0 && Date.now() - stored < 10 * 60 * 1000;
+    } catch {
+      return false;
+    }
   }
 
   function restoreLiffStateFromUrl() {
@@ -906,7 +930,9 @@
   function buildTags(mainType) {
     const tags = new Set(["診断_完了", ...TYPES[mainType].tags]);
     const data = { ...state.basics, ...state.marketing };
-    ["ageRange", "prefecture", "occupation", "familyStructure"].forEach(key => {
+    const ageRange = ageRangeFromBirthdate(data.birthdate);
+    if (ageRange) tags.add(ageRange);
+    ["prefecture", "occupation", "familyStructure"].forEach(key => {
       if (data[key] && data[key] !== "答えたくない") tags.add(data[key]);
     });
     if (data.mainConcern && data.mainConcern !== "答えたくない") tags.add(data.mainConcern);
@@ -915,6 +941,23 @@
     if (data.buyingIntent === "無料なら受けたい") tags.add("無料なら見たい");
     if (data.buyingIntent === "今は情報だけ見たい") tags.add("情報収集のみ");
     return Array.from(tags);
+  }
+
+  function ageRangeFromBirthdate(value) {
+    if (!value) return "";
+    const birthdate = new Date(`${value}T00:00:00`);
+    if (Number.isNaN(birthdate.getTime())) return "";
+    const today = new Date();
+    let age = today.getFullYear() - birthdate.getFullYear();
+    const hasBirthdayPassed =
+      today.getMonth() > birthdate.getMonth() ||
+      (today.getMonth() === birthdate.getMonth() && today.getDate() >= birthdate.getDate());
+    if (!hasBirthdayPassed) age -= 1;
+    if (age < 40) return "30代以下";
+    if (age < 50) return "40代";
+    if (age < 60) return "50代";
+    if (age < 70) return "60代";
+    return "70代以上";
   }
 
   function buildConcern(result) {
@@ -1049,6 +1092,7 @@
   }
 
   function redirectToLineHarnessLiff() {
+    markPendingLineHarnessStart();
     window.location.href = buildLineHarnessLiffUrl();
   }
 
@@ -1165,7 +1209,7 @@
         nickname: result.basics.nickname || "",
         birthdate: result.basics.birthdate || "",
         gender: result.basics.gender || "",
-        ageRange: result.basics.ageRange || "",
+        ageRange: ageRangeFromBirthdate(result.basics.birthdate),
         prefecture: result.basics.prefecture || "",
         occupation: result.marketing.occupation || "",
         incomeRange: result.marketing.incomeRange || "",
@@ -1217,7 +1261,7 @@
       nickname: result.basics.nickname || "",
       birthdate: result.basics.birthdate || "",
       gender: result.basics.gender || "",
-      ageRange: result.basics.ageRange || "",
+      ageRange: ageRangeFromBirthdate(result.basics.birthdate),
       prefecture: result.basics.prefecture || "",
       occupation: result.marketing.occupation || "",
       incomeRange: result.marketing.incomeRange || "",
@@ -1344,7 +1388,7 @@
         title: "プライバシーポリシー",
         body: [
           "当サイトは、診断結果の作成、LINEでの鑑定書配布、サービス改善、マーケティング分析のために、入力された情報を利用します。",
-          "取得する情報は、ニックネーム、生年月日、年代、都道府県、職業、年収、家族構成、悩み、興味テーマ、診断回答、流入元情報です。",
+          "取得・生成する情報は、ニックネーム、生年月日、生年月日から算出した年代、都道府県、職業、年収、家族構成、悩み、興味テーマ、診断回答、流入元情報です。",
           "LINE連携時は、LINE userId、表示名、プロフィール画像URL、配信許可ステータスを取得し、診断データと紐づける場合があります。",
           "健康状態、病歴、宗教、政治思想などのセンシティブ情報は原則として取得しません。配信の停止は案内された方法で行えます。"
         ]

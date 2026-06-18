@@ -49,6 +49,7 @@ const CONFIG = {
     refCode: "yt_line",
     redirectPath: "/t/",
     sessionKey: "ryujin_line_user_id",
+    pendingStartKey: "ryujin_pending_start",
     userIdParams: ["line_user_id", "lh_uid", "lhUserId", "uid", "userId", "lu"],
     entryParams: ["entry", "lh_entry", "route", "utm_content"]
   }
