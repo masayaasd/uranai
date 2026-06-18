@@ -1122,7 +1122,7 @@
     }
   }
 
-  async function sendLineHarnessTags(result, eventName) {
+  async function sendLineHarnessTags(result, eventName, retryCount = 0) {
     const statusBase = { eventName, occurredAt: new Date().toISOString() };
     if (!CONFIG.lineHarness.enabled || !CONFIG.lineHarness.endpoint) {
       updateLineHarnessStatus(result.diagnosisId, { ...statusBase, status: "disabled", error: "" });
@@ -1138,12 +1138,14 @@
     }
 
     if (!identity.idToken && !identity.lineUserId) {
+      const error = identity.error || "missing_line_identity";
       updateLineHarnessStatus(result.diagnosisId, {
         ...statusBase,
         status: "skipped",
-        error: identity.error || "missing_line_identity",
+        error,
         lineUserId: identity.lineUserId || ""
       });
+      scheduleLineHarnessRetry(result, eventName, retryCount, error);
       return;
     }
 
@@ -1174,8 +1176,23 @@
         error: error.message,
         lineUserId: identity.lineUserId || ""
       });
+      scheduleLineHarnessRetry(result, eventName, retryCount, error.message);
       console.warn("Lハーネス tag sync failed", error);
     }
+  }
+
+  function scheduleLineHarnessRetry(result, eventName, retryCount, reason) {
+    if (eventName !== "diagnosis_completed" || retryCount >= 3) {
+      return;
+    }
+    const retryable = /identity|liff|timeout|network|failed to fetch|load failed|HTTP 5/i.test(reason || "");
+    if (!retryable) {
+      return;
+    }
+    const delays = [1200, 3000, 6000];
+    window.setTimeout(() => {
+      sendLineHarnessTags(result, eventName, retryCount + 1);
+    }, delays[retryCount] || 6000);
   }
 
   async function getLineHarnessIdentity() {
